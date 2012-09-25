@@ -19,7 +19,7 @@ Fluentd plugin to count like COUNT(\*) GROUP BY
 
     <match apache.access>
       type groupcounter
-      count_interval 60s
+      count_interval 5s
       aggregate tag
       output_per_tag true
       tag_prefix groupcounter
