@@ -4,8 +4,8 @@ $:.push File.expand_path("../lib", __FILE__)
 Gem::Specification.new do |s|
   s.name        = "fluent-plugin-groupcounter"
   s.version     = "0.1.0"
-  s.authors     = ["Ryosuke IWANAGA"]
-  s.email       = [""]
+  s.authors     = ["Ryosuke IWANAGA", "Naotoshi SEO"]
+  s.email       = ["@riywo", "@sonots"]
   s.homepage    = "https://github.com/riywo/fluent-plugin-groupcounter"
   s.summary     = %q{Fluentd plugin to count like COUNT(\*) GROUP BY}
   s.description = %q{Fluentd plugin to count like COUNT(\*) GROUP BY}
