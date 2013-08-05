@@ -197,16 +197,17 @@ describe Fluent::GroupCounterOutput do
           tag_prefix count
         ]
       end
+
       before do
         Fluent::Engine.stub(:now).and_return(time)
-        Fluent::Engine.should_receive(:emit).with("count.all", time,{
+        Fluent::Engine.should_receive(:emit).with("count.all", time, {
           "200_GET_/ping_count"=>4, "200_POST_/auth_count"=>2, "400_GET_/ping_count"=>2
         })
       end
       it { emit }
     end
 
-    describe "store_file" do
+    context "store_file" do
       let(:store_file) do
         dirname = "tmp"
         Dir.mkdir dirname unless Dir.exist? dirname
@@ -240,6 +241,30 @@ describe Fluent::GroupCounterOutput do
         loaded_saved_at.should == stored_saved_at
         loaded_saved_duration.should == stored_saved_duration
       end
+    end
+
+    context 'group_by_placeholders' do
+      let(:config) { CONFIG + %[group_by_placeholders ${method}_${path.split("?")[0].split("/")[2]}/${code}] }
+      let(:messages) do
+        [
+          {"code" => 200, "method" => "GET",  "path" => "/api/people/@me/@self?count=1", "reqtime" => 0.000 },
+          {"code" => 200, "method" => "POST", "path" => "/api/ngword?_method=check", "reqtime" => 1.001 },
+          {"code" => 400, "method" => "GET",  "path" => "/api/messages/@me/@outbox", "reqtime" => 2.002 },
+          {"code" => 200, "method" => "GET",  "path" => "/api/people/@me/@self", "reqtime" => 3.003 },
+        ]
+      end
+      let(:expected) do
+        {
+          "GET_people/200_count"=>2,
+          "POST_ngword/200_count"=>1,
+          "GET_messages/400_count"=>1,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
     end
 
   end

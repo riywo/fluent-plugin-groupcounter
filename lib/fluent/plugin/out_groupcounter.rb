@@ -13,7 +13,8 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :tag, :string, :default => 'groupcount'
   config_param :tag_prefix, :string, :default => nil
   config_param :input_tag_remove_prefix, :string, :default => nil
-  config_param :group_by_keys, :string
+  config_param :group_by_keys, :string, :default => nil
+  config_param :group_by_placeholders, :string, :default => nil
   config_param :max_key, :string, :default => nil
   config_param :min_key, :string, :default => nil
   config_param :avg_key, :string, :default => nil
@@ -27,6 +28,10 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
   def configure(conf)
     super
+
+    if @group_by_keys.nil? and @group_by_placeholders.nil?
+      raise Fluent::ConfigError, "Either of group_by_keys or group_by_placeholders must be specified"
+    end
 
     if @count_interval
       @count_interval = @count_interval.to_i
@@ -57,7 +62,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
       @removed_length = @removed_prefix_string.length
     end
 
-    @group_by_keys = @group_by_keys.split(',')
+    @group_by_keys = @group_by_keys.split(',') if @group_by_keys
 
     if @store_file
       f = Pathname.new(@store_file)
@@ -67,6 +72,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
     end
 
     @counts = count_initialized
+    @hostname = Socket.gethostname
     @mutex = Mutex.new
   end
 
@@ -167,6 +173,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
   def emit(tag, es, chain)
     group_counts = {}
 
+    tags = tag.split('.')
     es.each do |time, record|
       count = {}
       count[:count] = 1
@@ -174,7 +181,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
       count[:max] = record[@max_key] if @max_key
       count[:min] = record[@min_key] if @min_key
 
-      group_key = group_key(record)
+      group_key = group_key(tag, time, record)
 
       group_counts[group_key] ||= {}
       countup(group_counts[group_key], count)
@@ -210,9 +217,14 @@ class Fluent::GroupCounterOutput < Fluent::Output
   end
 
   # Expand record with @group_by_keys, and get a value to be a group_key
-  def group_key(record)
-    values = @group_by_keys.map {|key| record[key] || 'undef' }
-    group_key = values.join('_')
+  def group_key(tag, time, record)
+    if @group_by_placeholders
+      tags = tag.split('.')
+      group_key = expand_placeholder(@group_by_placeholders, record, tag, tags, Time.at(time))
+    else # @group_by_keys
+      values = @group_by_keys.map {|key| record[key] || 'undef'}
+      group_key = values.join('_')
+    end
     group_key = group_key.to_s.force_encoding('ASCII-8BIT')
   end
 
@@ -292,6 +304,24 @@ class Fluent::GroupCounterOutput < Fluent::Output
       end
     rescue => e
       $log.warn "out_groupcounter: Can't load store_file #{e.class} #{e.message}"
+    end
+  end
+
+  private
+
+  def expand_placeholder(str, record, tag, tags, time)
+    struct = UndefOpenStruct.new(record)
+    struct.tag  = tag
+    struct.tags = tags
+    struct.time = time
+    struct.hostname = @hostname
+    str = str.gsub(/\$\{([^}]+)\}/, '#{\1}') # ${..} => #{..}
+    eval "\"#{str}\"", struct.instance_eval { binding }
+  end
+
+  class UndefOpenStruct < OpenStruct
+    (Object.instance_methods).each do |m|
+      undef_method m unless m.to_s =~ /^__|respond_to_missing\?|object_id|public_methods|instance_eval|method_missing|define_singleton_method|respond_to\?|new_ostruct_member/
     end
   end
 end
