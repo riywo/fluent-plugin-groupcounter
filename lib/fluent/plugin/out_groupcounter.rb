@@ -146,7 +146,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
     generate_output_per_tags(flushed, step)
   end
 
-  def flush_emit(step)
+  def flush_emit(step = 1)
     if @output_per_tag
       # tag - message maps
       time = Fluent::Engine.now
@@ -171,10 +171,14 @@ class Fluent::GroupCounterOutput < Fluent::Output
     @last_checked = Fluent::Engine.now
     while true
       sleep 0.5
-      if Fluent::Engine.now - @last_checked >= @tick
-        now = Fluent::Engine.now
-        flush_emit(now - @last_checked)
-        @last_checked = now
+      begin
+        if Fluent::Engine.now - @last_checked >= @tick
+          now = Fluent::Engine.now
+          flush_emit(now - @last_checked)
+          @last_checked = now
+        end
+      rescue => e
+        $log.warn "#{e.class} #{e.message} #{e.backtrace.first}"
       end
     end
   end
@@ -197,5 +201,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
     countups(tag, c)
 
     chain.next
+  rescue => e
+    $log.warn "#{e.class} #{e.message} #{e.backtrace.first}"
   end
 end

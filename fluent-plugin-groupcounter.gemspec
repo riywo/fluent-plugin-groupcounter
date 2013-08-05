@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.name        = "fluent-plugin-groupcounter"
   s.version     = "0.1.0"
   s.authors     = ["Ryosuke IWANAGA", "Naotoshi SEO"]
-  s.email       = ["@riywo", "@sonots"]
+  s.email       = ["@riywo", "sonots@gmail.com"]
   s.homepage    = "https://github.com/riywo/fluent-plugin-groupcounter"
   s.summary     = %q{Fluentd plugin to count like COUNT(\*) GROUP BY}
   s.description = %q{Fluentd plugin to count like COUNT(\*) GROUP BY}
@@ -18,6 +18,8 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   s.add_runtime_dependency "fluentd"
-  s.add_development_dependency "fluentd"
   s.add_development_dependency "rake"
+  s.add_development_dependency "rspec"
+  s.add_development_dependency "pry"
+  s.add_development_dependency "pry-nav"
 end
