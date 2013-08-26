@@ -55,6 +55,10 @@ Output like below
 
     Specify `yes` if you want to get tested messages. Default is `no`.
 
+* store\_file
+
+    Store internal data into a file of the given path on shutdown, and load on starting.
+
 ## Copyright
 
 * Copyright
