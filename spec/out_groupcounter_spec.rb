@@ -161,6 +161,39 @@ describe Fluent::GroupCounterOutput do
       end
       it { emit }
     end
+
+    describe "store_file" do
+      let(:store_file) do
+        dirname = "tmp"
+        Dir.mkdir dirname unless Dir.exist? dirname
+        filename = "#{dirname}/test.dat"
+        File.unlink filename if File.exist? filename
+        filename
+      end
+
+      let(:config) do
+        CONFIG + %[
+          store_file #{store_file}
+          ]
+      end
+
+      it 'stored_data and loaded_data should equal' do
+        driver.run { messages.each {|message| driver.emit({'message' => message}, time) } }
+        driver.instance.shutdown
+        stored_counts = driver.instance.counts
+        stored_passed_time = driver.instance.passed_time
+        driver.instance.counts = {}
+        driver.instance.passed_time = nil
+
+        driver.instance.start
+        loaded_counts = driver.instance.counts
+        loaded_passed_time = driver.instance.passed_time
+
+        loaded_counts.should == stored_counts
+        loaded_passed_time.should == stored_passed_time
+      end
+    end
+
   end
 end
 
