@@ -10,9 +10,11 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :input_tag_remove_prefix, :string, :default => nil
   config_param :group_by_keys, :string
   config_param :output_messages, :bool, :default => false
+  config_param :store_file, :string, :default => nil
 
   attr_accessor :tick
   attr_accessor :counts
+  attr_accessor :passed_time
   attr_accessor :last_checked
 
   def configure(conf)
@@ -49,12 +51,20 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
     @group_by_keys = @group_by_keys.split(',')
 
+    if @store_file
+      f = Pathname.new(@store_file)
+      if (f.exist? && !f.writable_real?) || (!f.exist? && !f.parent.writable_real?)
+        raise Fluent::ConfigError, "#{@store_file} is not writable"
+      end
+    end
+
     @counts = count_initialized
     @mutex = Mutex.new
   end
 
   def start
     super
+    load_from_file
     start_watch
   end
 
@@ -62,6 +72,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
     super
     @watcher.terminate
     @watcher.join
+    store_to_file
   end
 
   def count_initialized
@@ -169,6 +180,8 @@ class Fluent::GroupCounterOutput < Fluent::Output
   def watch
     # instance variable, and public accessable, for test
     @last_checked = Fluent::Engine.now
+    # skip the passed time when loading @counts form file
+    @last_checked -= @passed_time if @passed_time
     while true
       sleep 0.5
       begin
@@ -203,5 +216,43 @@ class Fluent::GroupCounterOutput < Fluent::Output
     chain.next
   rescue => e
     $log.warn "#{e.class} #{e.message} #{e.backtrace.first}"
+  end
+
+  def store_to_file
+    return unless @store_file
+
+    begin
+      Pathname.new(@store_file).open('wb') do |f|
+        @passed_time = Fluent::Engine.now - @last_checked
+        Marshal.dump({
+          :counts           => @counts,
+          :passed_time      => @passed_time,
+          :aggregate        => @aggregate,
+          :group_by_keys    => @group_by_keys,
+        }, f)
+      end
+    rescue => e
+      $log.warn "out_groupcounter: Can't write store_file #{e.class} #{e.message}"
+    end
+  end
+
+  def load_from_file
+    return unless @store_file
+    return unless (f = Pathname.new(@store_file)).exist?
+
+    begin
+      f.open('rb') do |f|
+        stored = Marshal.load(f)
+        if stored[:aggregate] == @aggregate and
+          stored[:group_by_keys] == @group_by_keys and
+          @counts = stored[:counts]
+          @passed_time = stored[:passed_time]
+        else
+          $log.warn "out_groupcounter: configuration param was changed. ignore stored data"
+        end
+      end
+    rescue => e
+      $log.warn "out_groupcounter: Can't load store_file #{e.class} #{e.message}"
+    end
   end
 end
