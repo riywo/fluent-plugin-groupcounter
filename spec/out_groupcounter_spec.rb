@@ -181,16 +181,20 @@ describe Fluent::GroupCounterOutput do
         driver.run { messages.each {|message| driver.emit({'message' => message}, time) } }
         driver.instance.shutdown
         stored_counts = driver.instance.counts
-        stored_passed_time = driver.instance.passed_time
+        stored_saved_at = driver.instance.saved_at
+        stored_saved_duration = driver.instance.saved_duration
         driver.instance.counts = {}
-        driver.instance.passed_time = nil
+        driver.instance.saved_at = nil
+        driver.instance.saved_duration = nil
 
         driver.instance.start
         loaded_counts = driver.instance.counts
-        loaded_passed_time = driver.instance.passed_time
+        loaded_saved_at = driver.instance.saved_at
+        loaded_saved_duration = driver.instance.saved_duration
 
         loaded_counts.should == stored_counts
-        loaded_passed_time.should == stored_passed_time
+        loaded_saved_at.should == stored_saved_at
+        loaded_saved_duration.should == stored_saved_duration
       end
     end
 

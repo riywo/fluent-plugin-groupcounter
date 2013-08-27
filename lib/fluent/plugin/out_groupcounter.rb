@@ -1,6 +1,11 @@
 class Fluent::GroupCounterOutput < Fluent::Output
   Fluent::Plugin.register_output('groupcounter', self)
 
+  def initialize
+    super
+    require 'pathname'
+  end
+
   config_param :count_interval, :time, :default => nil
   config_param :unit, :string, :default => 'minute'
   config_param :output_per_tag, :bool, :default => false
@@ -14,7 +19,8 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
   attr_accessor :tick
   attr_accessor :counts
-  attr_accessor :passed_time
+  attr_accessor :saved_duration
+  attr_accessor :saved_at
   attr_accessor :last_checked
 
   def configure(conf)
@@ -64,7 +70,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
   def start
     super
-    load_from_file
+    load_status(@store_file, @count_interval) if @store_file
     start_watch
   end
 
@@ -72,7 +78,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
     super
     @watcher.terminate
     @watcher.join
-    store_to_file
+    save_status(@store_file) if @store_file
   end
 
   def count_initialized
@@ -179,9 +185,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
   
   def watch
     # instance variable, and public accessable, for test
-    @last_checked = Fluent::Engine.now
-    # skip the passed time when loading @counts form file
-    @last_checked -= @passed_time if @passed_time
+    @last_checked ||= Fluent::Engine.now
     while true
       sleep 0.5
       begin
@@ -218,15 +222,19 @@ class Fluent::GroupCounterOutput < Fluent::Output
     $log.warn "#{e.class} #{e.message} #{e.backtrace.first}"
   end
 
-  def store_to_file
-    return unless @store_file
+  # Store internal status into a file
+  #
+  # @param [String] file_path
+  def save_status(file_path)
 
     begin
-      Pathname.new(@store_file).open('wb') do |f|
-        @passed_time = Fluent::Engine.now - @last_checked
+      Pathname.new(file_path).open('wb') do |f|
+        @saved_at = Fluent::Engine.now
+        @saved_duration = @saved_at - @last_checked
         Marshal.dump({
           :counts           => @counts,
-          :passed_time      => @passed_time,
+          :saved_at         => @saved_at,
+          :saved_duration   => @saved_duration,
           :aggregate        => @aggregate,
           :group_by_keys    => @group_by_keys,
         }, f)
@@ -236,17 +244,29 @@ class Fluent::GroupCounterOutput < Fluent::Output
     end
   end
 
-  def load_from_file
-    return unless @store_file
-    return unless (f = Pathname.new(@store_file)).exist?
+  # Load internal status from a file
+  #
+  # @param [String] file_path
+  # @param [Interger] count_interval
+  def load_status(file_path, count_interval)
+    return unless (f = Pathname.new(file_path)).exist?
 
     begin
       f.open('rb') do |f|
         stored = Marshal.load(f)
         if stored[:aggregate] == @aggregate and
           stored[:group_by_keys] == @group_by_keys and
-          @counts = stored[:counts]
-          @passed_time = stored[:passed_time]
+
+          if Fluent::Engine.now <= stored[:saved_at] + count_interval
+            @counts = stored[:counts]
+            @saved_at = stored[:saved_at]
+            @saved_duration = stored[:saved_duration]
+
+            # skip the saved duration to continue counting
+            @last_checked = Fluent::Engine.now - @saved_duration
+          else
+            $log.warn "out_groupcounter: stored data is outdated. ignore stored data"
+          end
         else
           $log.warn "out_groupcounter: configuration param was changed. ignore stored data"
         end
