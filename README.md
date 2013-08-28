@@ -1,15 +1,15 @@
 # fluent-plugin-groupcounter
 
-Fluentd plugin to count like COUNT(\*) GROUP BY
+Fluentd plugin to count like SELECT COUNT(\*) GROUP BY.
 
 ## Configuration
 
-    <source>
-      type tail
-      path /var/log/httpd-access.log
-      tag apache.access
-      format apache
-    </source>
+Assume inputs are coming as followings:
+
+    apache.access: {"code":"200", "method":"GET", "path":"/index.html", "foobar":"xxx" }
+    apache.access: {"code":"404", "method":"GET", "path":"/not_found.html", "foobar":"xxx" }
+
+Think of quering `SELECT COUNT(\*) GROUP BY code,method,path`. Configuration becomes as below:
 
     <match apache.access>
       type groupcounter
@@ -20,9 +20,9 @@ Fluentd plugin to count like COUNT(\*) GROUP BY
       group_by_keys code,method,path
     </match>
 
-Output like below
+Output becomes like
 
-    groupcounter.apache.access: {"200_GET_/index.html_count":1,"200_GET_/index.html_rate":0.2,"200_GET_/index.html_percentage":100.0}
+    groupcounter.apache.access: {"200_GET_/index.html_count":1, "404_GET_/not_found.html_count":1}
 
 ## Parameters
 
@@ -50,10 +50,6 @@ Output like below
 
     The interval time to monitor specified an unit (either of `minute`, `hour`, or `day`).
     Use either of `count_interval` or `unit`.
-
-* output\_messages
-
-    Specify `yes` if you want to get tested messages. Default is `no`.
 
 * store\_file
 

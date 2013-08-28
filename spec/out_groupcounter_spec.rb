@@ -34,7 +34,7 @@ describe Fluent::GroupCounterOutput do
 
       context "test least configuration" do
         let(:config) { %[group_by_keys foo] }
-        its(:count_interval) { should be_nil }
+        its(:count_interval) { should == 60 }
         its(:unit) { should == 'minute' }
         its(:output_per_tag) { should == false }
         its(:aggregate) { should == :tag }
@@ -42,7 +42,6 @@ describe Fluent::GroupCounterOutput do
         its(:tag_prefix) { should be_nil }
         its(:input_tag_remove_prefix) { should be_nil }
         its(:group_by_keys) { should == %w[foo] }
-        its(:output_messages) { should == false }
       end
 
       context "test template configuration" do
@@ -55,7 +54,6 @@ describe Fluent::GroupCounterOutput do
         its(:tag_prefix) { should == 'count' }
         its(:input_tag_remove_prefix) { should be_nil }
         its(:group_by_keys) { should == %w[code method path] }
-        its(:output_messages) { should == false }
       end
     end
   end
@@ -77,17 +75,13 @@ describe Fluent::GroupCounterOutput do
     end
     let(:expected) do
       {
-        "200_GET_/ping_count"=>2, "200_GET_/ping_rate"=>2.0, "200_GET_/ping_percentage"=>50.0,
-        "200_POST_/auth_count"=>1, "200_POST_/auth_rate"=>1.0, "200_POST_/auth_percentage"=>25.0,
-        "400_GET_/ping_count"=>1, "400_GET_/ping_rate"=>1.0, "400_GET_/ping_percentage"=>25.0
+        "200_GET_/ping_count"=>2,
+        "200_POST_/auth_count"=>1,
+        "400_GET_/ping_count"=>1,
       }
     end
     let(:expected_with_tag) do
       Hash[*(expected.map {|key, val| next ["test_#{key}", val] }.flatten)] 
-    end
-
-    context 'count_interval' do
-      pending
     end
 
     context 'default' do
@@ -157,7 +151,7 @@ describe Fluent::GroupCounterOutput do
       end
       before do
         Fluent::Engine.stub(:now).and_return(time)
-        Fluent::Engine.should_receive(:emit).with("count.all", time, {"200_GET_/ping_count"=>4, "200_GET_/ping_rate"=>4.0, "200_GET_/ping_percentage"=>50.0, "200_POST_/auth_count"=>2, "200_POST_/auth_rate"=>2.0, "200_POST_/auth_percentage"=>25.0, "400_GET_/ping_count"=>2, "400_GET_/ping_rate"=>2.0, "400_GET_/ping_percentage"=>25.0})
+        Fluent::Engine.should_receive(:emit).with("count.all", time, {"200_GET_/ping_count"=>4, "200_POST_/auth_count"=>2, "400_GET_/ping_count"=>2})
       end
       it { emit }
     end

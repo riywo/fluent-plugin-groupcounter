@@ -14,10 +14,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :tag_prefix, :string, :default => nil
   config_param :input_tag_remove_prefix, :string, :default => nil
   config_param :group_by_keys, :string
-  config_param :output_messages, :bool, :default => false
   config_param :store_file, :string, :default => nil
 
-  attr_accessor :tick
+  attr_accessor :count_interval
   attr_accessor :counts
   attr_accessor :saved_duration
   attr_accessor :saved_at
@@ -27,9 +26,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
     super
 
     if @count_interval
-      @tick = @count_interval.to_i
+      @count_interval = @count_interval.to_i
     else
-      @tick = case @unit
+      @count_interval = case @unit
               when 'minute' then 60
               when 'hour' then 3600
               when 'day' then 86400
@@ -82,99 +81,57 @@ class Fluent::GroupCounterOutput < Fluent::Output
   end
 
   def count_initialized
-    # counts['tag'][group_by_keys] = count
-    # counts['tag'][__sum] = sum
     {}
   end
 
-  def countups(tag, counts)
-    if @aggregate == :all
-      tag = 'all'
-    end
-    @counts[tag] ||= {}
-    
-    @mutex.synchronize {
-      sum = 0
-      counts.each do |key, count|
-        sum += count
-        @counts[tag][key] ||= 0
-        @counts[tag][key] += count
-      end
-      @counts[tag]['__sum'] ||= 0
-      @counts[tag]['__sum'] += sum
-    }
-  end
+  def generate_fields(counts_per_tag, output = {}, key_prefix = '')
+    return {} unless counts_per_tag
+    # total_count = counts_per_tag.delete('__total_count')
 
-  def stripped_tag(tag)
-    return tag unless @input_tag_remove_prefix
-    return tag[@removed_length..-1] if tag.start_with?(@removed_prefix_string) and tag.length > @removed_length
-    return tag[@removed_length..-1] if tag == @input_tag_remove_prefix
-    tag
-  end
-
-  def generate_fields(step, target_counts, attr_prefix, output)
-    return {} unless target_counts
-    sum = target_counts['__sum']
-    messages = target_counts.delete('__sum')
-
-    target_counts.each do |key, count|
-      output[attr_prefix + key + '_count'] = count
-      output[attr_prefix + key + '_rate'] = ((count * 100.0) / (1.00 * step)).floor / 100.0
-      output[attr_prefix + key + '_percentage'] = count * 100.0 / (1.00 * sum) if sum > 0
-      if @output_messages
-        output[attr_prefix + 'messages'] = messages
-      end
+    counts_per_tag.each do |group_key, count|
+      output[key_prefix + group_key + '_count'] = count[:count] if count[:count]
+      # output[key_prefix + group_key + '_rate'] = ((count[:count] * 100.0) / (1.00 * step)).floor / 100.0
+      # output[key_prefix + group_key + '_percentage'] = count[:count] * 100.0 / (1.00 * total_count) if total_count > 0
     end
 
     output
   end
 
-  def generate_output(counts, step)
-    if @aggregate == :all
-      return generate_fields(step, counts['all'], '', {})
-    end
+  def generate_output(counts)
+    if @output_per_tag # tag => output
+      return {'all' => generate_fields(counts['all'])} if @aggregate == :all
 
-    output = {}
-    counts.keys.each do |tag|
-      generate_fields(step, counts[tag], stripped_tag(tag) + '_', output)
+      output_pairs = {}
+      counts.keys.each do |tag|
+        output_pairs[stripped_tag(tag)] = generate_fields(counts[tag])
+      end
+      output_pairs
+    else
+      return generate_fields(counts['all']) if @aggregate == :all
+
+      output = {}
+      counts.keys.each do |tag|
+        generate_fields(counts[tag], output, stripped_tag(tag) + '_')
+      end
+      output
     end
-    output
   end
 
-  def generate_output_per_tags(counts, step)
-    if @aggregate == :all
-      return {'all' => generate_fields(step, counts['all'], '', {})}
-    end
-
-    output_pairs = {}
-    counts.keys.each do |tag|
-      output_pairs[stripped_tag(tag)] = generate_fields(step, counts[tag], '', {})
-    end
-    output_pairs
+  def flush
+    flushed, @counts = @counts, count_initialized()
+    generate_output(flushed)
   end
 
-  def flush(step) # returns one message
-    flushed,@counts = @counts,count_initialized()
-    generate_output(flushed, step)
-  end
-
-  def flush_per_tags(step) # returns map of tag - message
-    flushed,@counts = @counts,count_initialized()
-    generate_output_per_tags(flushed, step)
-  end
-
-  def flush_emit(step = 1)
+  # this method emits messages (periodically called)
+  def flush_emit
+    time = Fluent::Engine.now
     if @output_per_tag
-      # tag - message maps
-      time = Fluent::Engine.now
-      flush_per_tags(step).each do |tag,message|
+      flush.each do |tag, message|
         Fluent::Engine.emit(@tag_prefix_string + tag, time, message)
       end
     else
-      message = flush(step)
-      if message.keys.size > 0
-        Fluent::Engine.emit(@tag, Fluent::Engine.now, message)
-      end
+      message = flush
+      Fluent::Engine.emit(@tag, time, message) unless message.empty?
     end
   end
 
@@ -189,9 +146,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
     while true
       sleep 0.5
       begin
-        if Fluent::Engine.now - @last_checked >= @tick
+        if Fluent::Engine.now - @last_checked >= @count_interval
           now = Fluent::Engine.now
-          flush_emit(now - @last_checked)
+          flush_emit
           @last_checked = now
         end
       rescue => e
@@ -200,26 +157,64 @@ class Fluent::GroupCounterOutput < Fluent::Output
     end
   end
 
+  # recieve messages at here
   def emit(tag, es, chain)
-    c = {}
+    group_counts = {}
 
-    es.each do |time,record|
-      values = []
-      @group_by_keys.each { |key|
-        v = record[key] || 'undef'
-        values.push(v)
-      }
-      value = values.join('_')
+    es.each do |time, record|
+      count = {}
+      count[:count] = 1
 
-      value = value.to_s.force_encoding('ASCII-8BIT')
-      c[value] ||= 0
-      c[value] += 1
+      group_key = group_key(record)
+
+      group_counts[group_key] ||= {}
+      countup(group_counts[group_key], count)
     end
-    countups(tag, c)
+    summarize_counts(tag, group_counts)
 
     chain.next
   rescue => e
     $log.warn "#{e.class} #{e.message} #{e.backtrace.first}"
+  end
+
+  # Summarize counts for each tag
+  def summarize_counts(tag, group_counts)
+    tag = 'all' if @aggregate == :all
+    @counts[tag] ||= {}
+    
+    @mutex.synchronize {
+      group_counts.each do |group_key, count|
+        @counts[tag][group_key] ||= {}
+        countup(@counts[tag][group_key], count)
+      end
+
+      # total_count = group_counts.map {|group_key, count| count[:count] }.inject(:+)
+      # @counts[tag]['__total_count'] = sum(@counts[tag]['__total_count'], total_count)
+    }
+  end
+
+  def countup(counts, count)
+    counts[:count] = sum(counts[:count], count[:count])
+  end
+
+  # Expand record with @group_by_keys, and get a value to be a group_key
+  def group_key(record)
+    values = @group_by_keys.map {|key| record[key] || 'undef' }
+    group_key = values.join('_')
+    group_key = group_key.to_s.force_encoding('ASCII-8BIT')
+  end
+
+  def sum(a, b)
+    a ||= 0
+    b ||= 0
+    a + b
+  end
+
+  def stripped_tag(tag)
+    return tag unless @input_tag_remove_prefix
+    return tag[@removed_length..-1] if tag.start_with?(@removed_prefix_string) and tag.length > @removed_length
+    return tag[@removed_length..-1] if tag == @input_tag_remove_prefix
+    tag
   end
 
   # Store internal status into a file
