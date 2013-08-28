@@ -93,13 +93,61 @@ describe Fluent::GroupCounterOutput do
       it { emit }
     end
 
+    context 'delimiter' do
+      let(:config) { CONFIG + %[delimiter /] }
+      let(:expected) do
+        {
+          "200/GET//ping_count"=>2,
+          "200/POST//auth_count"=>1,
+          "400/GET//ping_count"=>1,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'count_suffix' do
+      let(:config) { CONFIG + %[count_suffix /count] }
+      let(:expected) do
+        {
+          "200_GET_/ping/count"=>2,
+          "200_POST_/auth/count"=>1,
+          "400_GET_/ping/count"=>1,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
     context 'max_key' do
       let(:config) { CONFIG + %[max_key reqtime] }
       let(:expected) do
         {
-          "200_GET_/ping_count"=>2, "200_GET_/ping_max"=>2.002,
-          "200_POST_/auth_count"=>1, "200_POST_/auth_max"=>1.001,
-          "400_GET_/ping_count"=>1, "400_GET_/ping_max"=>3.003,
+          "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime_max"=>2.002,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime_max"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime_max"=>3.003,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'max_suffix' do
+      let(:config) { CONFIG + %[max_key reqtime \n max_suffix /max] }
+      let(:expected) do
+        {
+          "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime/max"=>2.002,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime/max"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime/max"=>3.003,
         }
       end
       before do
@@ -113,9 +161,25 @@ describe Fluent::GroupCounterOutput do
       let(:config) { CONFIG + %[min_key reqtime] }
       let(:expected) do
         {
-          "200_GET_/ping_count"=>2, "200_GET_/ping_min"=>0.000,
-          "200_POST_/auth_count"=>1, "200_POST_/auth_min"=>1.001,
-          "400_GET_/ping_count"=>1, "400_GET_/ping_min"=>3.003,
+          "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime_min"=>0.000,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime_min"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime_min"=>3.003,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'min_suffix' do
+      let(:config) { CONFIG + %[min_key reqtime \n min_suffix /min] }
+      let(:expected) do
+        {
+          "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime/min"=>0.000,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime/min"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime/min"=>3.003,
         }
       end
       before do
@@ -129,9 +193,25 @@ describe Fluent::GroupCounterOutput do
       let(:config) { CONFIG + %[avg_key reqtime] }
       let(:expected) do
         {
-          "200_GET_/ping_count"=>2, "200_GET_/ping_avg"=>1.001,
-          "200_POST_/auth_count"=>1, "200_POST_/auth_avg"=>1.001,
-          "400_GET_/ping_count"=>1, "400_GET_/ping_avg"=>3.003,
+          "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime_avg"=>1.001,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime_avg"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime_avg"=>3.003,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'avg_suffix' do
+      let(:config) { CONFIG + %[avg_key reqtime \n avg_suffix /avg] }
+      let(:expected) do
+        {
+          "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime/avg"=>1.001,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime/avg"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime/avg"=>3.003,
         }
       end
       before do

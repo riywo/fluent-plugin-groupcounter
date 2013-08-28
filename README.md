@@ -6,14 +6,14 @@ Fluentd plugin to count like SELECT COUNT(\*) GROUP BY.
 
 Assume inputs are coming as followings:
 
-    apache.access: {"code":"200", "method":"GET", "path":"/index.html", "foobar":"xxx" }
-    apache.access: {"code":"404", "method":"GET", "path":"/not_found.html", "foobar":"xxx" }
+    apache.access: {"code":"200", "method":"GET", "path":"/index.html", "reqtime":"1.001" }
+    apache.access: {"code":"404", "method":"GET", "path":"/foo.html",   "reqtime":"2.002" }
+    apache.access: {"code":"200", "method":"GET", "path":"/index.html", "reqtime":"3.003" }
 
 Think of quering `SELECT COUNT(\*) GROUP BY code,method,path`. Configuration becomes as below:
 
     <match apache.access>
       type groupcounter
-      count_interval 5s
       aggregate tag
       output_per_tag true
       tag_prefix groupcounter
@@ -22,13 +22,17 @@ Think of quering `SELECT COUNT(\*) GROUP BY code,method,path`. Configuration bec
 
 Output becomes like
 
-    groupcounter.apache.access: {"200_GET_/index.html_count":1, "404_GET_/not_found.html_count":1}
+    groupcounter.apache.access: {"200_GET_/index.html_count":2, "404_GET_/foo.html_count":1}
 
 ## Parameters
 
 * group\_by\_keys (semi-required)
 
     Specify keys in the event record for grouping. `group_by_keys` or `group_by_expression` is required.
+
+* delimiter
+
+    Specify the delimiter to join `group_by_keys`. Default is '_'.
 
 * group\_by\_expression (semi-required)
 
@@ -40,7 +44,7 @@ Output becomes like
 
     gives you an output like
 
-        groupcounter.apache.access: {"GET/index.html/200_count":1, "GET/not_found.html/400_count":1}
+        groupcounter.apache.access: {"GET/index.html/200_count":1, "GET/foo.html/400_count":1}
 
     SECRET TRICK: You can write a ruby code in the ${} placeholder like
 
@@ -48,7 +52,7 @@ Output becomes like
 
     This gives an output like
 
-        groupcounter.apache.access: {"GET/index/2xx_count":1, "GET/not_found/4xx_count":1}
+        groupcounter.apache.access: {"GET/index/2xx_count":1, "GET/foo/4xx_count":1}
 
 * tag
 
@@ -79,6 +83,14 @@ Output becomes like
 
     Specify key name in the event record to do `SELECT COUNT(\*),MAX(key_name) GROUP BY`.
 
+    For examples, for the exampled input above, adding the configuration as below
+
+        max_key reqtime
+
+    gives you an output like
+
+        groupcounter.apache.access: {"200_GET_/index.html_reqtime_max":3.003, "404_GET_/foo.html_reqtime_max":2.002}
+
 * min\_key
 
     Specify key name in the event record to do `SELECT COUNT(\*),MIN(key_name) GROUP BY`.
@@ -86,6 +98,22 @@ Output becomes like
 * avg\_key
 
     Specify key name in the event record to do `SELECT COUNT(\*),AVG(key_name) GROUP BY`.
+
+* count\_suffix
+
+    Default is `_count`
+
+* max\_suffix
+
+    Default is `_max`. Should be used with `max_key` option.
+
+* min\_suffix
+
+    Default is `_min`. Should be used with `min_key` option.
+
+* avg\_suffix
+
+    Default is `_avg`. Should be used with `avg_key` option.
 
 ## Copyright
 
