@@ -67,10 +67,10 @@ describe Fluent::GroupCounterOutput do
 
     let(:messages) do
       [
-        {"code" => 200, "method" => "GET", "path" => "/ping"},
-        {"code" => 200, "method" => "POST", "path" => "/auth"},
-        {"code" => 200, "method" => "GET", "path" => "/ping"},
-        {"code" => 400, "method" => "GET", "path" => "/ping"},
+        {"code" => 200, "method" => "GET",  "path" => "/ping", "reqtime" => 0.000 },
+        {"code" => 200, "method" => "POST", "path" => "/auth", "reqtime" => 1.001 },
+        {"code" => 200, "method" => "GET",  "path" => "/ping", "reqtime" => 2.002 },
+        {"code" => 400, "method" => "GET",  "path" => "/ping", "reqtime" => 3.003 },
       ]
     end
     let(:expected) do
@@ -86,6 +86,54 @@ describe Fluent::GroupCounterOutput do
 
     context 'default' do
       let(:config) { CONFIG }
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'max_key' do
+      let(:config) { CONFIG + %[max_key reqtime] }
+      let(:expected) do
+        {
+          "200_GET_/ping_count"=>2, "200_GET_/ping_max"=>2.002,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_max"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_max"=>3.003,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'min_key' do
+      let(:config) { CONFIG + %[min_key reqtime] }
+      let(:expected) do
+        {
+          "200_GET_/ping_count"=>2, "200_GET_/ping_min"=>0.000,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_min"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_min"=>3.003,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'avg_key' do
+      let(:config) { CONFIG + %[avg_key reqtime] }
+      let(:expected) do
+        {
+          "200_GET_/ping_count"=>2, "200_GET_/ping_avg"=>1.001,
+          "200_POST_/auth_count"=>1, "200_POST_/auth_avg"=>1.001,
+          "400_GET_/ping_count"=>1, "400_GET_/ping_avg"=>3.003,
+        }
+      end
       before do
         Fluent::Engine.stub(:now).and_return(time)
         Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
@@ -151,7 +199,9 @@ describe Fluent::GroupCounterOutput do
       end
       before do
         Fluent::Engine.stub(:now).and_return(time)
-        Fluent::Engine.should_receive(:emit).with("count.all", time, {"200_GET_/ping_count"=>4, "200_POST_/auth_count"=>2, "400_GET_/ping_count"=>2})
+        Fluent::Engine.should_receive(:emit).with("count.all", time,{
+          "200_GET_/ping_count"=>4, "200_POST_/auth_count"=>2, "400_GET_/ping_count"=>2
+        })
       end
       it { emit }
     end

@@ -14,6 +14,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :tag_prefix, :string, :default => nil
   config_param :input_tag_remove_prefix, :string, :default => nil
   config_param :group_by_keys, :string
+  config_param :max_key, :string, :default => nil
+  config_param :min_key, :string, :default => nil
+  config_param :avg_key, :string, :default => nil
   config_param :store_file, :string, :default => nil
 
   attr_accessor :count_interval
@@ -90,6 +93,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
     counts_per_tag.each do |group_key, count|
       output[key_prefix + group_key + '_count'] = count[:count] if count[:count]
+      output[key_prefix + group_key + '_min'] = count[:min] if count[:min]
+      output[key_prefix + group_key + '_max'] = count[:max] if count[:max]
+      output[key_prefix + group_key + '_avg'] = count[:sum] / (count[:count] * 1.0) if count[:sum] and count[:count] > 0
       # output[key_prefix + group_key + '_rate'] = ((count[:count] * 100.0) / (1.00 * step)).floor / 100.0
       # output[key_prefix + group_key + '_percentage'] = count[:count] * 100.0 / (1.00 * total_count) if total_count > 0
     end
@@ -164,6 +170,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
     es.each do |time, record|
       count = {}
       count[:count] = 1
+      count[:sum] = record[@avg_key] if @avg_key
+      count[:max] = record[@max_key] if @max_key
+      count[:min] = record[@min_key] if @min_key
 
       group_key = group_key(record)
 
@@ -195,6 +204,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
   def countup(counts, count)
     counts[:count] = sum(counts[:count], count[:count])
+    counts[:sum]   = sum(counts[:sum], count[:sum]) if @avg_key and count[:sum]
+    counts[:max]   = max(counts[:max], count[:max]) if @max_key and count[:max]
+    counts[:min]   = min(counts[:min], count[:min]) if @min_key and count[:min]
   end
 
   # Expand record with @group_by_keys, and get a value to be a group_key
@@ -208,6 +220,18 @@ class Fluent::GroupCounterOutput < Fluent::Output
     a ||= 0
     b ||= 0
     a + b
+  end
+
+  def max(a, b)
+    return b if a.nil?
+    return a if b.nil?
+    a > b ? a : b
+  end
+
+  def min(a, b)
+    return b if a.nil?
+    return a if b.nil?
+    a > b ? b : a
   end
 
   def stripped_tag(tag)
