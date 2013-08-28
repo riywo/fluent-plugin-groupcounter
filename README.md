@@ -55,6 +55,18 @@ Output becomes like
 
     Store internal data into a file of the given path on shutdown, and load on starting.
 
+* max\_key
+
+    Specify key name in the event record to do `SELECT COUNT(\*),MAX(key_name) GROUP BY`.
+
+* min\_key
+
+    Specify key name in the event record to do `SELECT COUNT(\*),MIN(key_name) GROUP BY`.
+
+* avg\_key
+
+    Specify key name in the event record to do `SELECT COUNT(\*),AVG(key_name) GROUP BY`.
+
 ## Copyright
 
 * Copyright
