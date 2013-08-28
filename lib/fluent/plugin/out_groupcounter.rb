@@ -18,6 +18,11 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :max_key, :string, :default => nil
   config_param :min_key, :string, :default => nil
   config_param :avg_key, :string, :default => nil
+  config_param :delimiter, :string, :default => '_'
+  config_param :count_suffix, :string, :default => '_count'
+  config_param :max_suffix, :string, :default => '_max'
+  config_param :min_suffix, :string, :default => '_min'
+  config_param :avg_suffix, :string, :default => '_avg'
   config_param :store_file, :string, :default => nil
 
   attr_accessor :count_interval
@@ -98,12 +103,12 @@ class Fluent::GroupCounterOutput < Fluent::Output
     # total_count = counts_per_tag.delete('__total_count')
 
     counts_per_tag.each do |group_key, count|
-      output[key_prefix + group_key + '_count'] = count[:count] if count[:count]
-      output[key_prefix + group_key + '_min'] = count[:min] if count[:min]
-      output[key_prefix + group_key + '_max'] = count[:max] if count[:max]
-      output[key_prefix + group_key + '_avg'] = count[:sum] / (count[:count] * 1.0) if count[:sum] and count[:count] > 0
-      # output[key_prefix + group_key + '_rate'] = ((count[:count] * 100.0) / (1.00 * step)).floor / 100.0
-      # output[key_prefix + group_key + '_percentage'] = count[:count] * 100.0 / (1.00 * total_count) if total_count > 0
+      output[key_prefix + group_key + @count_suffix] = count[:count] if count[:count]
+      output[key_prefix + group_key + "#{@delimiter}#{@min_key}#{@min_suffix}"] = count[:min] if count[:min]
+      output[key_prefix + group_key + "#{@delimiter}#{@max_key}#{@max_suffix}"] = count[:max] if count[:max]
+      output[key_prefix + group_key + "#{@delimiter}#{@avg_key}#{@avg_suffix}"] = count[:sum] / (count[:count] * 1.0) if count[:sum] and count[:count] > 0
+      # output[key_prefix + group_key + "#{@delimiter}rate"] = ((count[:count] * 100.0) / (1.00 * step)).floor / 100.0
+      # output[key_prefix + group_key + "#{@delimiter}percentage"] = count[:count] * 100.0 / (1.00 * total_count) if total_count > 0
     end
 
     output
@@ -223,7 +228,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
       group_key = expand_placeholder(@group_by_expression, record, tag, tags, Time.at(time))
     else # @group_by_keys
       values = @group_by_keys.map {|key| record[key] || 'undef'}
-      group_key = values.join('_')
+      group_key = values.join(@delimiter)
     end
     group_key = group_key.to_s.force_encoding('ASCII-8BIT')
   end
