@@ -14,7 +14,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :tag_prefix, :string, :default => nil
   config_param :input_tag_remove_prefix, :string, :default => nil
   config_param :group_by_keys, :string, :default => nil
-  config_param :group_by_placeholders, :string, :default => nil
+  config_param :group_by_expression, :string, :default => nil
   config_param :max_key, :string, :default => nil
   config_param :min_key, :string, :default => nil
   config_param :avg_key, :string, :default => nil
@@ -29,8 +29,8 @@ class Fluent::GroupCounterOutput < Fluent::Output
   def configure(conf)
     super
 
-    if @group_by_keys.nil? and @group_by_placeholders.nil?
-      raise Fluent::ConfigError, "Either of group_by_keys or group_by_placeholders must be specified"
+    if @group_by_keys.nil? and @group_by_expression.nil?
+      raise Fluent::ConfigError, "Either of group_by_keys or group_by_expression must be specified"
     end
 
     if @count_interval
@@ -218,9 +218,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
   # Expand record with @group_by_keys, and get a value to be a group_key
   def group_key(tag, time, record)
-    if @group_by_placeholders
+    if @group_by_expression
       tags = tag.split('.')
-      group_key = expand_placeholder(@group_by_placeholders, record, tag, tags, Time.at(time))
+      group_key = expand_placeholder(@group_by_expression, record, tag, tags, Time.at(time))
     else # @group_by_keys
       values = @group_by_keys.map {|key| record[key] || 'undef'}
       group_key = values.join('_')

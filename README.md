@@ -26,18 +26,17 @@ Output becomes like
 
 ## Parameters
 
-* group\_by\_keys
+* group\_by\_keys (semi-required)
 
-    The target keys to group by in the event record. Either of `group\_by\_keys` or `group\_by_placeholders` is required.
+    Specify keys in the event record for grouping. `group_by_keys` or `group_by_expression` is required.
 
-* group\_by\_placeholders
+* group\_by\_expression (semi-required)
 
-    The target expression to group by in the event record. Either of `group\_by\_keys` or `group\_by_placeholders` is required.
-    Use this option when you want to customize the key values of output.
+    Use an expression to group the event record. `group_by_keys` or `group_by_expression` is required.
 
     For examples, for the exampled input above, the configuration as below
 
-        group_by_placeholders ${method}${path}/${code}
+        group_by_expression ${method}${path}/${code}
 
     gives you an output like
 
@@ -45,11 +44,11 @@ Output becomes like
 
     SECRET TRICK: You can write a ruby code in the ${} placeholder like
 
-        group_by_placeholders ${method}${path.split(".")[0]}/${code}
+        group_by_expression ${method}${path.split(".")[0]}/${code[0]}xx
 
     This gives an output like
 
-        groupcounter.apache.access: {"GET/index/200_count":1, "GET/not_found/400_count":1}
+        groupcounter.apache.access: {"GET/index/2xx_count":1, "GET/not_found/4xx_count":1}
 
 * tag
 

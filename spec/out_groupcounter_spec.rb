@@ -243,21 +243,21 @@ describe Fluent::GroupCounterOutput do
       end
     end
 
-    context 'group_by_placeholders' do
-      let(:config) { CONFIG + %[group_by_placeholders ${method}_${path.split("?")[0].split("/")[2]}/${code}] }
+    context 'group_by_expression' do
+      let(:config) { CONFIG + %[group_by_expression ${method}_${path.split("?")[0].split("/")[2]}/${code[0]}xx] }
       let(:messages) do
         [
-          {"code" => 200, "method" => "GET",  "path" => "/api/people/@me/@self?count=1", "reqtime" => 0.000 },
-          {"code" => 200, "method" => "POST", "path" => "/api/ngword?_method=check", "reqtime" => 1.001 },
-          {"code" => 400, "method" => "GET",  "path" => "/api/messages/@me/@outbox", "reqtime" => 2.002 },
-          {"code" => 200, "method" => "GET",  "path" => "/api/people/@me/@self", "reqtime" => 3.003 },
+          {"code" => "200", "method" => "GET",  "path" => "/api/people/@me/@self?count=1", "reqtime" => 0.000 },
+          {"code" => "200", "method" => "POST", "path" => "/api/ngword?_method=check", "reqtime" => 1.001 },
+          {"code" => "400", "method" => "GET",  "path" => "/api/messages/@me/@outbox", "reqtime" => 2.002 },
+          {"code" => "201", "method" => "GET",  "path" => "/api/people/@me/@self", "reqtime" => 3.003 },
         ]
       end
       let(:expected) do
         {
-          "GET_people/200_count"=>2,
-          "POST_ngword/200_count"=>1,
-          "GET_messages/400_count"=>1,
+          "GET_people/2xx_count"=>2,
+          "POST_ngword/2xx_count"=>1,
+          "GET_messages/4xx_count"=>1,
         }
       end
       before do
