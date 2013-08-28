@@ -26,13 +26,34 @@ Output becomes like
 
 ## Parameters
 
-* group\_by\_keys (required)
+* group\_by\_keys
 
-    The target keys to group by in the event record.
+    The target keys to group by in the event record. Either of `group\_by\_keys` or `group\_by_placeholders` is required.
+
+* group\_by\_placeholders
+
+    The target expression to group by in the event record. Either of `group\_by\_keys` or `group\_by_placeholders` is required.
+    Use this option when you want to customize the key values of output.
+
+    For examples, for the exampled input above, the configuration as below
+
+        group_by_placeholders ${method}${path}/${code}
+
+    gives you an output like
+
+        groupcounter.apache.access: {"GET/index.html/200_count":1, "GET/not_found.html/400_count":1}
+
+    SECRET TRICK: You can write a ruby code in the ${} placeholder like
+
+        group_by_placeholders ${method}${path.split(".")[0]}/${code}
+
+    This gives an output like
+
+        groupcounter.apache.access: {"GET/index/200_count":1, "GET/not_found/400_count":1}
 
 * tag
 
-    The output tag. Default is `datacount`.
+    The output tag. Default is `groupcount`.
 
 * tag\_prefix
 
