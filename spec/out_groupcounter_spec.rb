@@ -67,10 +67,10 @@ describe Fluent::GroupCounterOutput do
 
     let(:messages) do
       [
-        {"code" => 200, "method" => "GET",  "path" => "/ping", "reqtime" => 0.000 },
-        {"code" => 200, "method" => "POST", "path" => "/auth", "reqtime" => 1.001 },
-        {"code" => 200, "method" => "GET",  "path" => "/ping", "reqtime" => 2.002 },
-        {"code" => 400, "method" => "GET",  "path" => "/ping", "reqtime" => 3.003 },
+        {"code" => 200, "method" => "GET",  "path" => "/ping", "reqtime" => "0.000" },
+        {"code" => 200, "method" => "POST", "path" => "/auth", "reqtime" => "1.001" },
+        {"code" => 200, "method" => "GET",  "path" => "/ping", "reqtime" => "2.002" },
+        {"code" => 400, "method" => "GET",  "path" => "/ping", "reqtime" => "3.003" },
       ]
     end
     let(:expected) do

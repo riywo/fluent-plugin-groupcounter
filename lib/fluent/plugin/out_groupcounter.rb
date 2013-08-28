@@ -177,9 +177,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
     es.each do |time, record|
       count = {}
       count[:count] = 1
-      count[:sum] = record[@avg_key] if @avg_key
-      count[:max] = record[@max_key] if @max_key
-      count[:min] = record[@min_key] if @min_key
+      count[:sum] = record[@avg_key].to_f if @avg_key and record[@avg_key]
+      count[:max] = record[@max_key].to_f if @max_key and record[@max_key]
+      count[:min] = record[@min_key].to_f if @min_key and record[@min_key]
 
       group_key = group_key(tag, time, record)
 
