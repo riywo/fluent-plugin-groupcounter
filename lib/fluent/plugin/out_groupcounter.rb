@@ -37,10 +37,6 @@ class Fluent::GroupCounterOutput < Fluent::Output
   def configure(conf)
     super
 
-    if @group_by_keys.nil? and @group_by_expression.nil?
-      raise Fluent::ConfigError, "Either of group_by_keys or group_by_expression must be specified"
-    end
-
     if @count_interval
       @count_interval = @count_interval.to_i
     else
@@ -114,12 +110,13 @@ class Fluent::GroupCounterOutput < Fluent::Output
     # total_count = counts_per_tag.delete('__total_count')
 
     counts_per_tag.each do |group_key, count|
+      group_key_with = group_key.empty? ? "" : group_key + @delimiter
       output[key_prefix + group_key + @count_suffix] = count[:count] if count[:count]
-      output[key_prefix + group_key + "#{@delimiter}#{@min_key}#{@min_suffix}"] = count[:min] if count[:min]
-      output[key_prefix + group_key + "#{@delimiter}#{@max_key}#{@max_suffix}"] = count[:max] if count[:max]
-      output[key_prefix + group_key + "#{@delimiter}#{@avg_key}#{@avg_suffix}"] = count[:sum] / (count[:count] * 1.0) if count[:sum] and count[:count] > 0
-      # output[key_prefix + group_key + "#{@delimiter}rate"] = ((count[:count] * 100.0) / (1.00 * step)).floor / 100.0
-      # output[key_prefix + group_key + "#{@delimiter}percentage"] = count[:count] * 100.0 / (1.00 * total_count) if total_count > 0
+      output[key_prefix + group_key_with + "#{@min_key}#{@min_suffix}"] = count[:min] if count[:min]
+      output[key_prefix + group_key_with + "#{@max_key}#{@max_suffix}"] = count[:max] if count[:max]
+      output[key_prefix + group_key_with + "#{@avg_key}#{@avg_suffix}"] = count[:sum] / (count[:count] * 1.0) if count[:sum] and count[:count] > 0
+      # output[key_prefix + group_key_with + "rate"] = ((count[:count] * 100.0) / (1.00 * step)).floor / 100.0
+      # output[key_prefix + group_key_with + "percentage"] = count[:count] * 100.0 / (1.00 * total_count) if total_count > 0
     end
 
     output
@@ -139,7 +136,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
 
       output = {}
       counts.keys.each do |tag|
-        generate_fields(counts[tag], output, stripped_tag(tag) + '_')
+        generate_fields(counts[tag], output, stripped_tag(tag) + @delimiter)
       end
       output
     end
@@ -237,9 +234,11 @@ class Fluent::GroupCounterOutput < Fluent::Output
     if @group_by_expression
       tags = tag.split('.')
       group_key = expand_placeholder(@group_by_expression, record, tag, tags, Time.at(time))
-    else # @group_by_keys
+    elsif @group_by_keys
       values = @group_by_keys.map {|key| record[key] || 'undef'}
       group_key = values.join(@delimiter)
+    else
+      return ""
     end
     group_key = group_key.to_s.force_encoding('ASCII-8BIT')
 

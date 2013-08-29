@@ -22,13 +22,6 @@ describe Fluent::GroupCounterOutput do
   let(:driver) { Fluent::Test::OutputTestDriver.new(Fluent::GroupCounterOutput, tag).configure(config) }
 
   describe 'test configure' do
-    describe 'bad configuration' do
-      context 'test empty configuration' do
-        let(:config) { %[] }
-        it { expect { driver }.to raise_error(Fluent::ConfigError) }
-      end
-    end
-
     describe 'good configuration' do
       subject { driver.instance }
 
@@ -84,7 +77,7 @@ describe Fluent::GroupCounterOutput do
       Hash[*(expected.map {|key, val| next ["test_#{key}", val] }.flatten)] 
     end
 
-    context 'default' do
+    context 'typical' do
       let(:config) { CONFIG }
       before do
         Fluent::Engine.stub(:now).and_return(time)
@@ -212,6 +205,33 @@ describe Fluent::GroupCounterOutput do
           "200_GET_/ping_count"=>2, "200_GET_/ping_reqtime/avg"=>1.001,
           "200_POST_/auth_count"=>1, "200_POST_/auth_reqtime/avg"=>1.001,
           "400_GET_/ping_count"=>1, "400_GET_/ping_reqtime/avg"=>3.003,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'no group_by' do
+      let(:config) do
+        %[
+          tag_prefix count
+          output_per_tag true
+
+          count_suffix count
+          max_key reqtime
+          min_key reqtime
+          avg_key reqtime
+        ]
+      end
+      let(:expected) do
+        {
+          "count"=>4,
+          "reqtime_min"=>0.0,
+          "reqtime_max"=>3.003,
+          "reqtime_avg"=>1.5015,
         }
       end
       before do
