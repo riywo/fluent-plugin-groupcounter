@@ -3,12 +3,12 @@ $:.push File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name        = "fluent-plugin-groupcounter"
-  s.version     = "0.1.0"
+  s.version     = "0.2.0"
   s.authors     = ["Ryosuke IWANAGA", "Naotoshi SEO"]
   s.email       = ["@riywo", "sonots@gmail.com"]
   s.homepage    = "https://github.com/riywo/fluent-plugin-groupcounter"
-  s.summary     = %q{Fluentd plugin to count like COUNT(\*) GROUP BY}
-  s.description = %q{Fluentd plugin to count like COUNT(\*) GROUP BY}
+  s.summary     = %q{Fluentd plugin to count like SELECT COUNT(\*) GROUP BY}
+  s.description = %q{Fluentd plugin to count like SELECT COUNT(\*) GROUP BY}
 
   s.rubyforge_project = "fluent-plugin-groupcounter"
 
