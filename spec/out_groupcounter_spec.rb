@@ -347,6 +347,38 @@ describe Fluent::GroupCounterOutput do
       it { emit }
     end
 
+    context 'pattern' do
+      # NOTE: \\d should be just \d in config file
+      let(:config) { CONFIG + %[
+        group_by_expression ${method}_${path.split("?")[0].split("/")[2]}/${code}
+        delimiter _
+        pattern1 201 201$
+        pattern2 2xx 2\\d\\d$
+        pattern3 4xx 4\\d\\d$
+      ]}
+      let(:messages) do
+        [
+          {"code" => "200", "method" => "GET",  "path" => "/api/people/@me/@self?count=1", "reqtime" => 0.000 },
+          {"code" => "200", "method" => "POST", "path" => "/api/ngword?_method=check", "reqtime" => 1.001 },
+          {"code" => "400", "method" => "GET",  "path" => "/api/messages/@me/@outbox", "reqtime" => 2.002 },
+          {"code" => "201", "method" => "GET",  "path" => "/api/people/@me/@self", "reqtime" => 3.003 },
+        ]
+      end
+      let(:expected) do
+        {
+          "GET_people/201_count"=>1,
+          "GET_people/2xx_count"=>1,
+          "POST_ngword/2xx_count"=>1,
+          "GET_messages/4xx_count"=>1,
+        }
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("count.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
   end
 end
 
