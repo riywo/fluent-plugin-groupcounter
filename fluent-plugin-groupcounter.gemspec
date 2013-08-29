@@ -3,7 +3,7 @@ $:.push File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name        = "fluent-plugin-groupcounter"
-  s.version     = "0.2.1"
+  s.version     = "0.2.2"
   s.authors     = ["Ryosuke IWANAGA", "Naotoshi SEO"]
   s.email       = ["@riywo", "sonots@gmail.com"]
   s.homepage    = "https://github.com/riywo/fluent-plugin-groupcounter"
