@@ -7,7 +7,7 @@ Fluentd plugin to count like SELECT COUNT(\*) GROUP BY.
 Assume inputs are coming as followings:
 
     apache.access: {"code":"200", "method":"GET", "path":"/index.html", "reqtime":"1.001" }
-    apache.access: {"code":"404", "method":"GET", "path":"/foo.html",   "reqtime":"2.002" }
+    apache.access: {"code":"202", "method":"GET", "path":"/foo.html",   "reqtime":"2.002" }
     apache.access: {"code":"200", "method":"GET", "path":"/index.html", "reqtime":"3.003" }
 
 Think of quering `SELECT COUNT(\*) GROUP BY code,method,path`. Configuration becomes as below:
@@ -22,7 +22,7 @@ Think of quering `SELECT COUNT(\*) GROUP BY code,method,path`. Configuration bec
 
 Output becomes like
 
-    groupcounter.apache.access: {"200_GET_/index.html_count":2, "404_GET_/foo.html_count":1}
+    groupcounter.apache.access: {"200_GET_/index.html_count":2, "202_GET_/foo.html_count":1}
 
 ## Parameters
 
@@ -33,6 +33,16 @@ Output becomes like
 * delimiter
 
     Specify the delimiter to join `group_by_keys`. Default is '_'.
+
+* pattern\[1-20\]
+
+    Use `patternX` option to apply grouping more roughly. For example, adding a configuration for the above example as below
+
+         pattern1 2xx ^2\d\d
+
+    gives you an ouput like
+
+         groupcounter.apache.access: {"2xx_GET_/index.html_count":3}
 
 * group\_by\_expression (semi-required)
 
@@ -89,7 +99,7 @@ Output becomes like
 
     gives you an output like
 
-        groupcounter.apache.access: {"200_GET_/index.html_reqtime_max":3.003, "404_GET_/foo.html_reqtime_max":2.002}
+        groupcounter.apache.access: {"200_GET_/index.html_reqtime_max":3.003, "202_GET_/foo.html_reqtime_max":2.002}
 
 * min\_key
 
