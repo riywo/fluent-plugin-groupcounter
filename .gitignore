@@ -9,4 +9,5 @@ vendor
 doc/*
 tmp/*
 .yardoc
-
+pck/*
+.ruby-version

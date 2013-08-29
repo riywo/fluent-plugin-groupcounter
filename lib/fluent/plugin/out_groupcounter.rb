@@ -1,6 +1,8 @@
 class Fluent::GroupCounterOutput < Fluent::Output
   Fluent::Plugin.register_output('groupcounter', self)
 
+  PATTERN_MAX_NUM = 20
+
   def initialize
     super
     require 'pathname'
@@ -24,6 +26,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :min_suffix, :string, :default => '_min'
   config_param :avg_suffix, :string, :default => '_avg'
   config_param :store_file, :string, :default => nil
+  (1..PATTERN_MAX_NUM).each {|i| config_param "pattern#{i}".to_sym, :string, :default => nil }
 
   attr_accessor :count_interval
   attr_accessor :counts
@@ -68,6 +71,14 @@ class Fluent::GroupCounterOutput < Fluent::Output
     end
 
     @group_by_keys = @group_by_keys.split(',') if @group_by_keys
+
+    @pattern = {}
+    (1..PATTERN_MAX_NUM).each do |i|
+      next unless conf["pattern#{i}"]
+      replace, regexp = conf["pattern#{i}"].split(/ +/, 2)
+      raise Fluent::ConfigError, "pattern#{i} does not contain 2 parameters" unless regexp
+      @pattern[replace] = Regexp.compile(regexp)
+    end
 
     if @store_file
       f = Pathname.new(@store_file)
@@ -231,6 +242,9 @@ class Fluent::GroupCounterOutput < Fluent::Output
       group_key = values.join(@delimiter)
     end
     group_key = group_key.to_s.force_encoding('ASCII-8BIT')
+
+    @pattern.each {|replace, regexp| break if group_key.gsub!(regexp, replace) }
+    group_key
   end
 
   def sum(a, b)
