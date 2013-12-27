@@ -13,8 +13,10 @@ class Fluent::GroupCounterOutput < Fluent::Output
   config_param :output_per_tag, :bool, :default => false
   config_param :aggregate, :string, :default => 'tag'
   config_param :tag, :string, :default => 'groupcount'
-  config_param :tag_prefix, :string, :default => nil
-  config_param :input_tag_remove_prefix, :string, :default => nil
+  config_param :tag_prefix, :string, :default => nil # obsolete
+  config_param :add_tag_prefix, :string, :default => nil
+  config_param :input_tag_remove_prefix, :string, :default => nil # obsolete
+  config_param :remove_tag_prefix, :string, :default => nil
   config_param :group_by_keys, :string, :default => nil
   config_param :group_by_expression, :string, :default => nil
   config_param :max_key, :string, :default => nil
@@ -56,13 +58,18 @@ class Fluent::GroupCounterOutput < Fluent::Output
                    raise Fluent::ConfigError, "groupcounter aggregate allows tag/all"
                  end
 
+    @add_tag_prefix ||= @tag_prefix
+    @remove_tag_prefix ||= @input_tag_remove_prefix
     if @output_per_tag
-      raise Fluent::ConfigError, "tag_prefix must be specified with output_per_tag" unless @tag_prefix
-      @tag_prefix_string = @tag_prefix + '.'
+      raise Fluent::ConfigError, "add_tag_prefix must be specified with output_per_tag" unless @add_tag_prefix
     end
-
-    if @input_tag_remove_prefix
-      @removed_prefix_string = @input_tag_remove_prefix + '.'
+    if @add_tag_prefix
+      @tag_prefix_string = @add_tag_prefix + '.'
+    else
+      @tag_prefix_string = ''
+    end
+    if @remove_tag_prefix
+      @removed_prefix_string = @remove_tag_prefix + '.'
       @removed_length = @removed_prefix_string.length
     end
 
@@ -152,7 +159,7 @@ class Fluent::GroupCounterOutput < Fluent::Output
     time = Fluent::Engine.now
     if @output_per_tag
       flush.each do |tag, message|
-        Fluent::Engine.emit(@tag_prefix_string + tag, time, message)
+        Fluent::Engine.emit("#{@tag_prefix_string}#{tag}", time, message)
       end
     else
       message = flush
@@ -265,9 +272,8 @@ class Fluent::GroupCounterOutput < Fluent::Output
   end
 
   def stripped_tag(tag)
-    return tag unless @input_tag_remove_prefix
+    return tag unless @remove_tag_prefix
     return tag[@removed_length..-1] if tag.start_with?(@removed_prefix_string) and tag.length > @removed_length
-    return tag[@removed_length..-1] if tag == @input_tag_remove_prefix
     tag
   end
 
