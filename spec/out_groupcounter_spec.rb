@@ -14,11 +14,11 @@ describe Fluent::GroupCounterOutput do
     count_interval 5s
     aggragate tag
     output_per_tag true
-    tag_prefix count
+    add_tag_prefix count
     group_by_keys code,method,path
   ]
 
-  let(:tag) { 'test' }
+  let(:tag) { 'test.hoge' }
   let(:driver) { Fluent::Test::OutputTestDriver.new(Fluent::GroupCounterOutput, tag).configure(config) }
 
   describe 'test configure' do
@@ -32,8 +32,8 @@ describe Fluent::GroupCounterOutput do
         its(:output_per_tag) { should == false }
         its(:aggregate) { should == :tag }
         its(:tag) { should == 'groupcount' }
-        its(:tag_prefix) { should be_nil }
-        its(:input_tag_remove_prefix) { should be_nil }
+        its(:add_tag_prefix) { should be_nil }
+        its(:remove_tag_prefix) { should be_nil }
         its(:group_by_keys) { should == %w[foo] }
       end
 
@@ -44,8 +44,8 @@ describe Fluent::GroupCounterOutput do
         its(:output_per_tag) { should == true }
         its(:aggregate) { should == :tag }
         its(:tag) { should == 'groupcount' }
-        its(:tag_prefix) { should == 'count' }
-        its(:input_tag_remove_prefix) { should be_nil }
+        its(:add_tag_prefix) { should == 'count' }
+        its(:remove_tag_prefix) { should be_nil }
         its(:group_by_keys) { should == %w[code method path] }
       end
     end
@@ -74,7 +74,7 @@ describe Fluent::GroupCounterOutput do
       }
     end
     let(:expected_with_tag) do
-      Hash[*(expected.map {|key, val| next ["test_#{key}", val] }.flatten)] 
+      Hash[*(expected.map {|key, val| next ["test.hoge_#{key}", val] }.flatten)] 
     end
 
     context 'typical' do
@@ -217,7 +217,7 @@ describe Fluent::GroupCounterOutput do
     context 'no group_by' do
       let(:config) do
         %[
-          tag_prefix count
+          add_tag_prefix count
           output_per_tag true
 
           count_suffix count
@@ -271,15 +271,60 @@ describe Fluent::GroupCounterOutput do
       end
     end
 
-    context 'tag_prefix' do
+    context 'tag_prefix (obsolete)' do
       let(:config) do
-        CONFIG + %[
+        %[
+          count_interval 5s
+          aggragate tag
+          output_per_tag true
           tag_prefix foo
+          group_by_keys code,method,path
         ]
       end
       before do
         Fluent::Engine.stub(:now).and_return(time)
         Fluent::Engine.should_receive(:emit).with("foo.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'add_tag_prefix' do
+      let(:config) do
+        CONFIG + %[
+          add_tag_prefix foo
+        ]
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("foo.#{tag}", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'input_tag_remove_prefix (obsolete)' do
+      let(:config) do
+        CONFIG + %[
+          add_tag_prefix foo
+          input_tag_remove_prefix test
+        ]
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("foo.hoge", time, expected)
+      end
+      it { emit }
+    end
+
+    context 'remove_tag_prefix' do
+      let(:config) do
+        CONFIG + %[
+          add_tag_prefix foo
+          remove_tag_prefix test
+        ]
+      end
+      before do
+        Fluent::Engine.stub(:now).and_return(time)
+        Fluent::Engine.should_receive(:emit).with("foo.hoge", time, expected)
       end
       it { emit }
     end
@@ -294,7 +339,7 @@ describe Fluent::GroupCounterOutput do
       let(:config) do
         CONFIG + %[
           aggregate all
-          tag_prefix count
+          add_tag_prefix count
         ]
       end
 

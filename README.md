@@ -16,7 +16,7 @@ Think of quering `SELECT COUNT(\*) GROUP BY code,method,path`. Configuration bec
       type groupcounter
       aggregate tag
       output_per_tag true
-      tag_prefix groupcounter
+      add_tag_prefix groupcounter
       group_by_keys code,method,path
     </match>
 
@@ -68,11 +68,11 @@ Output becomes like
 
     The output tag. Default is `groupcount`.
 
-* tag\_prefix
+* add\_tag\_prefix
 
     The prefix string which will be added to the input tag. `output_per_tag yes` must be specified together. 
 
-* input\_tag\_remove\_prefix
+* remove\_tag\__prefix
 
     The prefix string which will be removed from the input tag.
 
@@ -124,6 +124,18 @@ Output becomes like
 * avg\_suffix
 
     Default is `_avg`. Should be used with `avg_key` option.
+
+## ChangeLog
+
+See [CHANGELOG.md](CHANGELOG.md) for details.
+
+## Contributing
+
+1. Fork it
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create new [Pull Request](../../pull/new/master)
 
 ## Copyright
 
