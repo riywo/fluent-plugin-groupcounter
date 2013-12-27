@@ -72,7 +72,7 @@ Output becomes like
 
     The prefix string which will be added to the input tag. `output_per_tag yes` must be specified together. 
 
-* remove\_tag\__prefix
+* remove\_tag\_prefix
 
     The prefix string which will be removed from the input tag.
 
