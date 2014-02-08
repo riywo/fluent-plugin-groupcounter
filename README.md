@@ -1,4 +1,4 @@
-# fluent-plugin-groupcounter
+# fluent-plugin-groupcounter, a plugin for [Fluentd](http://fluentd.org)
 
 Fluentd plugin to count like SELECT COUNT(\*) GROUP BY.
 
